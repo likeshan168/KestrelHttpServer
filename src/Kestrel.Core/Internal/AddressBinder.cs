@@ -23,9 +23,11 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal
             IDefaultHttpsProvider defaultHttpsProvider,
             Func<ListenOptions, Task> createBinding)
         {
+            var configReader = new ConfigReader(serverOptions.Configuration);
             var listenOptions = serverOptions.ListenOptions;
             var strategy = CreateStrategy(
                 listenOptions.ToArray(),
+                configReader,
                 addresses.Addresses.ToArray(),
                 addresses.PreferHostingUrls);
 
@@ -36,6 +38,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal
                 ServerOptions = serverOptions,
                 Logger = logger,
                 DefaultHttpsProvider = defaultHttpsProvider ?? UnconfiguredDefaultHttpsProvider.Instance,
+                ConfigReader = configReader,
                 CreateBinding = createBinding
             };
 
@@ -47,9 +50,10 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal
             await strategy.BindAsync(context).ConfigureAwait(false);
         }
 
-        private static IStrategy CreateStrategy(ListenOptions[] listenOptions, string[] addresses, bool preferAddresses)
+        private static IStrategy CreateStrategy(ListenOptions[] listenOptions, ConfigReader configReader, string[] addresses, bool preferAddresses)
         {
             var hasListenOptions = listenOptions.Length > 0;
+            var hasConfig = configReader.Endpoints.Any();
             var hasAddresses = addresses.Length > 0;
 
             if (preferAddresses && hasAddresses)
@@ -61,7 +65,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal
 
                 return new AddressesStrategy(addresses);
             }
-            else if (hasListenOptions)
+            else if (hasListenOptions || hasConfig)
             {
                 if (hasAddresses)
                 {
@@ -225,6 +229,13 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal
                 foreach (var endpoint in _endpoints)
                 {
                     await endpoint.BindAsync(context).ConfigureAwait(false);
+                }
+
+                foreach (var endpoint in context.ConfigReader.Endpoints)
+                {
+                    // TODO: Cert
+                    await ParseAddress(endpoint.Url, context.ServerOptions, context.DefaultHttpsProvider)
+                        .BindAsync(context).ConfigureAwait(false);
                 }
             }
         }

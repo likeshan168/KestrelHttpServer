@@ -10,8 +10,11 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.AspNetCore.Server.Kestrel.Transport.Abstractions.Internal;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace SampleApp
@@ -48,13 +51,52 @@ namespace SampleApp
                 {
                     factory.AddConsole();
                 })
+                .ConfigureAppConfiguration((hostingContext, config) =>
+                {
+                    var env = hostingContext.HostingEnvironment;
+                    config.AddJsonFile("appsettings.json", optional: true)
+                          .AddJsonFile($"appsettings.{env.EnvironmentName}.json", optional: true);
+                })
                 .UseKestrel((context, options) =>
                 {
+                    ShowConfig(context.Configuration);
                     var basePort = context.Configuration.GetValue<int?>("BASE_PORT") ?? 5000;
+
+                    options.Configuration = context.Configuration.GetSection("Kestrel");
 
                     // Run callbacks on the transport thread
                     options.ApplicationSchedulingMode = SchedulingMode.Inline;
+                    /*
+                    options.ConfigureEndpointDefaults(listenOptions =>
+                    {
+                        listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
+                    });
 
+                    options.ConfigureHttpsDefaults(httpsOptions =>
+                    {
+                        httpsOptions.ClientCertificateMode = ClientCertificateMode.AllowCertificate;
+                    });
+
+                    options.ConfigureEndpoint("FromConfig", listenOptions =>
+                    {
+                        listenOptions.Protocols = HttpProtocols.Http2;
+                    });
+
+                    options.ConfigureEndpoint("FromConfig", listenOptions =>
+                    {
+                        listenOptions.Protocols = HttpProtocols.Http1;
+                    },
+                    httpsOptions =>
+                    {
+                        httpsOptions.SslProtocols = SslProtocols.Tls12;
+                    });
+
+                    // Overload of ConfigureEndpoint without listenOptions.
+                    options.ConfigureEndpointHttps("FromConfig",  httpsOptions =>
+                    {
+                        httpsOptions.SslProtocols = SslProtocols.Tls12;
+                    });
+                    */
                     options.Listen(IPAddress.Loopback, basePort, listenOptions =>
                     {
                         // Uncomment the following to enable Nagle's algorithm for this endpoint.
@@ -95,6 +137,15 @@ namespace SampleApp
             }
                 
             return hostBuilder.Build().RunAsync();
+        }
+
+        private static void ShowConfig(IConfiguration config)
+        {
+            foreach (var pair in config.GetChildren())
+            {
+                Console.WriteLine($"{pair.Path} - {pair.Value}");
+                ShowConfig(pair);
+            }
         }
     }
 }

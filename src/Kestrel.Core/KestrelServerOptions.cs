@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Net;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Transport.Abstractions.Internal;
+using Microsoft.Extensions.Configuration;
 
 namespace Microsoft.AspNetCore.Server.Kestrel.Core
 {
@@ -54,6 +55,13 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core
         /// Provides access to request limit options.
         /// </summary>
         public KestrelServerLimits Limits { get; } = new KestrelServerLimits();
+
+        /// <summary>
+        /// Provides a configuration source where endpoints will be loaded from on server start.
+        /// This must be scoped to the section with the Kestrel specific settings. The default
+        /// is null.
+        /// </summary>
+        public IConfiguration Configuration { get; set; }
 
         /// <summary>
         /// Bind to given IP address and port.
