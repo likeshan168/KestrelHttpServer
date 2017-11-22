@@ -1,6 +1,7 @@
 // Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+using System;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
@@ -69,7 +70,30 @@ namespace Microsoft.AspNetCore.Hosting
         /// </returns>
         public static ListenOptions UseHttps(this ListenOptions listenOptions, X509Certificate2 serverCertificate)
         {
-            return listenOptions.UseHttps(new HttpsConnectionAdapterOptions { ServerCertificate = serverCertificate });
+            return listenOptions.UseHttps(options => options.ServerCertificate = serverCertificate);
+        }
+
+        /// <summary>
+        /// Configure Kestrel to use HTTPS.
+        /// </summary>
+        /// <param name="listenOptions">
+        /// The <see cref="ListenOptions"/> to configure.
+        /// </param>
+        /// <param name="configureHttps">An action to configure options for HTTPS.</param>
+        /// <returns>
+        /// The <see cref="ListenOptions"/>.
+        /// </returns>
+        public static ListenOptions UseHttps(this ListenOptions listenOptions, Action<HttpsConnectionAdapterOptions> configureHttps)
+        {
+            if (configureHttps == null)
+            {
+                throw new ArgumentNullException(nameof(configureHttps));
+            }
+
+            var options = new HttpsConnectionAdapterOptions();
+            // TODO: Defaults
+            configureHttps(options);
+            return listenOptions.UseHttps(options);
         }
 
         /// <summary>
