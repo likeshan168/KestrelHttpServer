@@ -8,22 +8,37 @@ using Microsoft.AspNetCore.Certificates.Generation;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.Server.Kestrel.Core.Internal;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Microsoft.AspNetCore.Server.Kestrel.Internal
 {
-    public class DefaultHttpsProvider : IDefaultHttpsProvider
+    public class HttpsProvider : IHttpsProvider
     {
         private static readonly CertificateManager _certificateManager = new CertificateManager();
 
-        private readonly ILogger<DefaultHttpsProvider> _logger;
+        private readonly ILogger<HttpsProvider> _logger;
 
-        public DefaultHttpsProvider(ILogger<DefaultHttpsProvider> logger)
+        public HttpsProvider(ILogger<HttpsProvider> logger)
         {
             _logger = logger;
         }
 
-        public void ConfigureHttps(ListenOptions listenOptions)
+        public void ConfigureHttps(ListenOptions listenOptions, IConfigurationSection certConfig)
+        {
+            var certInfo = new CertificateConfig(certConfig);
+            if (certInfo.Exists)
+            {
+                // TODO: Other patterns like cert store
+                listenOptions.UseHttps(certInfo.Path, certInfo.Password);
+            }
+            else
+            {
+                UseDefaultCert(listenOptions);
+            }
+        }
+
+        private void UseDefaultCert(ListenOptions listenOptions)
         {
             var certificate = _certificateManager.ListCertificates(CertificatePurpose.HTTPS, StoreName.My, StoreLocation.CurrentUser, isValid: true)
                 .FirstOrDefault();
@@ -37,6 +52,25 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal
                 _logger.UnableToLocateDevelopmentCertificate();
                 throw new InvalidOperationException(KestrelStrings.HttpsUrlProvidedButNoDevelopmentCertificateFound);
             }
+        }
+
+        internal class CertificateConfig
+        {
+            public CertificateConfig(IConfigurationSection configSection)
+            {
+                ConfigSection = configSection;
+            }
+
+            public IConfigurationSection ConfigSection { get; }
+
+            public bool Exists => ConfigSection?.GetChildren().Any() ?? false;
+
+            public string Id => ConfigSection?.Key;
+
+            public string Path => ConfigSection?["Path"];
+
+            public string Password => ConfigSection?["Password"];
+
         }
     }
 }

@@ -14,7 +14,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal
         public List<ListenOptions> ListenOptions { get; set; }
         public KestrelServerOptions ServerOptions { get; set; }
         public ILogger Logger { get; set; }
-        public IDefaultHttpsProvider DefaultHttpsProvider { get; set; }
+        public IHttpsProvider HttpsProvider { get; set; }
         public ConfigReader ConfigReader { get; set; }
         public Func<ListenOptions, Task> CreateBinding { get; set; }
     }

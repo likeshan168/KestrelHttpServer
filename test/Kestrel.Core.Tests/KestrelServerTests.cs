@@ -40,22 +40,22 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Tests
         [Fact]
         public void StartWithHttpsAddressConfiguresHttpsEndpoints()
         {
-            var mockDefaultHttpsProvider = new Mock<IDefaultHttpsProvider>();
+            var mockHttpsProvider = new Mock<IHttpsProvider>();
 
-            using (var server = CreateServer(new KestrelServerOptions(), mockDefaultHttpsProvider.Object))
+            using (var server = CreateServer(new KestrelServerOptions(), mockHttpsProvider.Object))
             {
                 server.Features.Get<IServerAddressesFeature>().Addresses.Add("https://127.0.0.1:0");
 
                 StartDummyApplication(server);
 
-                mockDefaultHttpsProvider.Verify(provider => provider.ConfigureHttps(It.IsAny<ListenOptions>()), Times.Once);
+                mockHttpsProvider.Verify(provider => provider.ConfigureHttps(It.IsAny<ListenOptions>(), null), Times.Once);
             }
         }
  
         [Fact]
-        public void KestrelServerThrowsUsefulExceptionIfDefaultHttpsProviderNotAdded()
+        public void KestrelServerThrowsUsefulExceptionIfHttpsProviderNotAdded()
         {
-            using (var server = CreateServer(new KestrelServerOptions(), defaultHttpsProvider: null, throwOnCriticalErrors: false))
+            using (var server = CreateServer(new KestrelServerOptions(), httpsProvider: null, throwOnCriticalErrors: false))
             {
                 server.Features.Get<IServerAddressesFeature>().Addresses.Add("https://127.0.0.1:0");
 
@@ -65,9 +65,9 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Tests
         }
  
         [Fact]
-        public void KestrelServerDoesNotThrowIfNoDefaultHttpsProviderButNoHttpUrls()
+        public void KestrelServerDoesNotThrowIfNoHttpsProviderButNoHttpUrls()
         {
-            using (var server = CreateServer(new KestrelServerOptions(), defaultHttpsProvider: null))
+            using (var server = CreateServer(new KestrelServerOptions(), httpsProvider: null))
             {
                 server.Features.Get<IServerAddressesFeature>().Addresses.Add("http://127.0.0.1:0");
 
@@ -76,14 +76,12 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Tests
         }
  
         [Fact]
-        public void KestrelServerDoesNotThrowIfNoDefaultHttpsProviderButManualListenOptions()
+        public void KestrelServerDoesNotThrowIfNoHttpsProviderButManualListenOptions()
         {
-            var mockDefaultHttpsProvider = new Mock<IDefaultHttpsProvider>();
-
             var serverOptions = new KestrelServerOptions();
             serverOptions.Listen(new IPEndPoint(IPAddress.Loopback, 0));
 
-            using (var server = CreateServer(serverOptions, defaultHttpsProvider: null))
+            using (var server = CreateServer(serverOptions, httpsProvider: null))
             {
                 server.Features.Get<IServerAddressesFeature>().Addresses.Add("https://127.0.0.1:0");
 
@@ -311,9 +309,9 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Tests
             return new KestrelServer(Options.Create(options), new MockTransportFactory(), new LoggerFactory(new[] { new KestrelTestLoggerProvider(testLogger) }));
         }
 
-        private static KestrelServer CreateServer(KestrelServerOptions options, IDefaultHttpsProvider defaultHttpsProvider, bool throwOnCriticalErrors = true)
+        private static KestrelServer CreateServer(KestrelServerOptions options, IHttpsProvider httpsProvider, bool throwOnCriticalErrors = true)
         {
-            return new KestrelServer(Options.Create(options), new MockTransportFactory(), new LoggerFactory(new[] { new KestrelTestLoggerProvider(throwOnCriticalErrors) }), defaultHttpsProvider);
+            return new KestrelServer(Options.Create(options), new MockTransportFactory(), new LoggerFactory(new[] { new KestrelTestLoggerProvider(throwOnCriticalErrors) }), httpsProvider);
         }
 
         private static void StartDummyApplication(IServer server)

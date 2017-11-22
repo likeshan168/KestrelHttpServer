@@ -22,7 +22,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core
         private readonly List<ITransport> _transports = new List<ITransport>();
         private readonly Heartbeat _heartbeat;
         private readonly IServerAddressesFeature _serverAddresses;
-        private readonly IDefaultHttpsProvider _defaultHttpsProvider;
+        private readonly IHttpsProvider _httpsProvider;
         private readonly ITransportFactory _transportFactory;
 
         private bool _hasStarted;
@@ -34,10 +34,10 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core
         {
         }
 
-        public KestrelServer(IOptions<KestrelServerOptions> options, ITransportFactory transportFactory, ILoggerFactory loggerFactory, IDefaultHttpsProvider defaultHttpsProvider)
+        public KestrelServer(IOptions<KestrelServerOptions> options, ITransportFactory transportFactory, ILoggerFactory loggerFactory, IHttpsProvider httpsProvider)
             : this(transportFactory, CreateServiceContext(options, loggerFactory))
         {
-            _defaultHttpsProvider = defaultHttpsProvider;
+            _httpsProvider = httpsProvider;
         }
 
         // For testing
@@ -159,7 +159,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core
                     await transport.BindAsync().ConfigureAwait(false);
                 }
 
-                await AddressBinder.BindAsync(_serverAddresses, Options, Trace, _defaultHttpsProvider, OnBind).ConfigureAwait(false);
+                await AddressBinder.BindAsync(_serverAddresses, Options, Trace, _httpsProvider, OnBind).ConfigureAwait(false);
             }
             catch (Exception ex)
             {

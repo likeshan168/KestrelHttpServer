@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Protocols;
 using Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal
@@ -20,7 +21,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal
         public static async Task BindAsync(IServerAddressesFeature addresses,
             KestrelServerOptions serverOptions,
             ILogger logger,
-            IDefaultHttpsProvider defaultHttpsProvider,
+            IHttpsProvider httpsProvider,
             Func<ListenOptions, Task> createBinding)
         {
             var configReader = new ConfigReader(serverOptions.Configuration);
@@ -37,7 +38,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal
                 ListenOptions = listenOptions,
                 ServerOptions = serverOptions,
                 Logger = logger,
-                DefaultHttpsProvider = defaultHttpsProvider ?? UnconfiguredDefaultHttpsProvider.Instance,
+                HttpsProvider = httpsProvider ?? UnconfiguredHttpsProvider.Instance,
                 ConfigReader = configReader,
                 CreateBinding = createBinding
             };
@@ -65,7 +66,12 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal
 
                 return new AddressesStrategy(addresses);
             }
-            else if (hasListenOptions || hasConfig)
+            else if (hasConfig)
+            {
+                // TODO: Override message
+                return new ConfigStrategy();
+            }
+            else if (hasListenOptions)
             {
                 if (hasAddresses)
                 {
@@ -116,10 +122,10 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal
             context.ListenOptions.Add(endpoint);
         }
 
-        internal static ListenOptions ParseAddress(string address, KestrelServerOptions serverOptions, IDefaultHttpsProvider defaultHttpsProvider)
+        internal static ListenOptions ParseAddress(string address, out bool https)
         {
             var parsedAddress = ServerAddress.FromUrl(address);
-            var https = false;
+            https = false;
 
             if (parsedAddress.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
             {
@@ -155,12 +161,6 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal
                 options = new AnyIPListenOptions(parsedAddress.Port);
             }
 
-            if (https)
-            {
-                options.KestrelServerOptions = serverOptions;
-                defaultHttpsProvider.ConfigureHttps(options);
-            }
-
             return options;
         }
 
@@ -175,7 +175,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal
             {
                 context.Logger.LogDebug(CoreStrings.BindingToDefaultAddress, Constants.DefaultServerAddress);
 
-                await ParseAddress(Constants.DefaultServerAddress, context.ServerOptions, context.DefaultHttpsProvider)
+                await ParseAddress(Constants.DefaultServerAddress, out var https)
                     .BindAsync(context).ConfigureAwait(false);
             }
         }
@@ -230,12 +230,26 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal
                 {
                     await endpoint.BindAsync(context).ConfigureAwait(false);
                 }
+            }
+        }
 
+        private class ConfigStrategy : IStrategy
+        {
+            public ConfigStrategy()
+            {
+            }
+
+            public virtual async Task BindAsync(AddressBindContext context)
+            {
                 foreach (var endpoint in context.ConfigReader.Endpoints)
                 {
-                    // TODO: Cert
-                    await ParseAddress(endpoint.Url, context.ServerOptions, context.DefaultHttpsProvider)
-                        .BindAsync(context).ConfigureAwait(false);
+                    var options = ParseAddress(endpoint.Url, out var https);
+                    if (https)
+                    {
+                        options.KestrelServerOptions = context.ServerOptions;
+                        context.HttpsProvider.ConfigureHttps(options, endpoint.CertConfig);
+                    }
+                    await options.BindAsync(context).ConfigureAwait(false);
                 }
             }
         }
@@ -253,24 +267,31 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal
             {
                 foreach (var address in _addresses)
                 {
-                    await ParseAddress(address, context.ServerOptions, context.DefaultHttpsProvider)
-                        .BindAsync(context).ConfigureAwait(false);
+                    var options = ParseAddress(address, out var https);
+
+                    if (https)
+                    {
+                        options.KestrelServerOptions = context.ServerOptions;
+                        context.HttpsProvider.ConfigureHttps(options, null);
+                    }
+
+                    await options.BindAsync(context).ConfigureAwait(false);
                 }
             }
         }
 
-        private class UnconfiguredDefaultHttpsProvider : IDefaultHttpsProvider
+        private class UnconfiguredHttpsProvider : IHttpsProvider
         {
-            public static readonly UnconfiguredDefaultHttpsProvider Instance = new UnconfiguredDefaultHttpsProvider();
+            public static readonly UnconfiguredHttpsProvider Instance = new UnconfiguredHttpsProvider();
 
-            private UnconfiguredDefaultHttpsProvider()
+            private UnconfiguredHttpsProvider()
             {
             }
 
-            public void ConfigureHttps(ListenOptions listenOptions)
+            public void ConfigureHttps(ListenOptions listenOptions, IConfigurationSection certConfig)
             {
                 // We have to throw here. If this is called, it's because the user asked for "https" binding but for some
-                // reason didn't provide a certificate and didn't use the "DefaultHttpsProvider". This means if we no-op,
+                // reason didn't provide a certificate and didn't use the "HttpsProvider". This means if we no-op,
                 // we'll silently downgrade to HTTP, which is bad.
                 throw new InvalidOperationException(CoreStrings.UnableToConfigureHttpsBindings);
             }

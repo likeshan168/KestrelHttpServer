@@ -62,7 +62,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal
                 {
                     Name = endpointConfig.Key,
                     Url = url,
-                    CertificateSection = endpointConfig.GetSection("Certificate"),
+                    CertConfig = endpointConfig.GetSection("Certificate"),
                 };
                 _endpoints.Add(endpoint);
             }
@@ -73,6 +73,6 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal
     {
         public string Name { get; set; }
         public string Url { get; set; }
-        public IConfiguration CertificateSection { get; set; }
+        public IConfigurationSection CertConfig { get; set; }
     }
 }

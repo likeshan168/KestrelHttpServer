@@ -6,7 +6,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal
 {
     internal static class LoggerExtensions
     {
-        // Category: DefaultHttpsProvider
+        // Category: HttpsProvider
         private static readonly Action<ILogger, string, string, Exception> _locatedDevelopmentCertificate =
             LoggerMessage.Define<string, string>(LogLevel.Debug, new EventId(0, nameof(LocatedDevelopmentCertificate)), "Using development certificate: {certificateSubjectName} (Thumbprint: {certificateThumbprint})");
 

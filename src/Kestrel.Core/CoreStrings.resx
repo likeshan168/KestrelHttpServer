@@ -463,6 +463,6 @@
     <value>Request headers contain connection-specific header field.</value>
   </data>
   <data name="UnableToConfigureHttpsBindings" xml:space="preserve">
-    <value>Unable to configure default https bindings because no IDefaultHttpsProvider service was provided.</value>
+    <value>Unable to configure https bindings because no IHttpsProvider service was provided.</value>
   </data>
 </root>
