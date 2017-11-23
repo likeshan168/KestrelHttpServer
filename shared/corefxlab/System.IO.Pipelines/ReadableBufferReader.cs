@@ -43,11 +43,6 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.System.IO.Pipelines
             {
                 var part = _enumerator.Current;
 
-                if (_end)
-                {
-                    return new ReadCursor(part.Segment, part.Start + _currentSpan.Length);
-                }
-
                 return new ReadCursor(part.Segment, part.Start + _index);
             }
         }
@@ -90,19 +85,16 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.System.IO.Pipelines
         [MethodImpl(MethodImplOptions.NoInlining)]
         private void MoveNext()
         {
-            while (_enumerator.MoveNext())
+            if (_enumerator.MoveNext())
             {
                 var part = _enumerator.Current;
-                var length = part.Length;
-                if (length != 0)
-                {
-                    _currentSpan = part.Segment.Buffer.Span.Slice(part.Start, length);
-                    _index = 0;
-                    return;
-                }
+                _currentSpan = part.Segment.Buffer.Span.Slice(part.Start, part.Length);
+                _index = 0;
             }
-
-            _end = true;
+            else
+            {
+                _end = true;
+            }
         }
 
         public void Skip(int length)
@@ -123,7 +115,11 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.System.IO.Pipelines
                     break;
                 }
 
-                length -= (_currentSpan.Length - _index);
+                var remaining = (_currentSpan.Length - _index);
+
+                _index += remaining;
+                length -= remaining;
+
                 MoveNext();
             }
 

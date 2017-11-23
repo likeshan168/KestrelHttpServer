@@ -46,7 +46,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.System.IO.Pipelines
         {
             var segment = _segment;
 
-            if (segment == null)
+            if (segment == null || segment.ReadableBytes == 0)
             {
                 return false;
             }
