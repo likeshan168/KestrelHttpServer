@@ -63,6 +63,36 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core
         /// </summary>
         public IConfiguration Configuration { get; set; }
 
+        internal Action<ListenOptions> EndpointDefaults { get; set; } = _ => { };
+
+        internal IDictionary<string, Action<ListenOptions>> EndpointConfigurations { get; } = new Dictionary<string, Action<ListenOptions>>(0);
+
+        public IDictionary<string, object> AdapterData { get; } = new Dictionary<string, object>(0);
+
+        /// <summary>
+        /// Specifies a configuration Action to run for each newly created endpoint.
+        /// </summary>
+        /// <param name="configureOptions"></param>
+        public void ConfigureEndpointDefaults(Action<ListenOptions> configureOptions)
+        {
+            EndpointDefaults = configureOptions ?? throw new ArgumentNullException(nameof(configureOptions));
+        }
+
+        /// <summary>
+        /// Specifies a configuration Action to run when an endpoint with the given name is loaded from configuration.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="configureOptions"></param>
+        public void ConfigureEndpoint(string name, Action<ListenOptions> configureOptions)
+        {
+            if (string.IsNullOrEmpty(name))
+            {
+                throw new ArgumentNullException(nameof(name));
+            }
+
+            EndpointConfigurations[name] = configureOptions ?? throw new ArgumentNullException(nameof(configureOptions));
+        }
+
         /// <summary>
         /// Bind to given IP address and port.
         /// </summary>
@@ -109,6 +139,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core
             }
 
             var listenOptions = new ListenOptions(endPoint) { KestrelServerOptions = this };
+            EndpointDefaults(listenOptions);
             configure(listenOptions);
             ListenOptions.Add(listenOptions);
         }
@@ -126,6 +157,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core
             {
                 KestrelServerOptions = this,
             };
+            EndpointDefaults(listenOptions);
             configure(listenOptions);
             ListenOptions.Add(listenOptions);
         }
@@ -143,6 +175,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core
             {
                 KestrelServerOptions = this,
             };
+            EndpointDefaults(listenOptions);
             configure(listenOptions);
             ListenOptions.Add(listenOptions);
         }
@@ -175,6 +208,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core
             }
 
             var listenOptions = new ListenOptions(socketPath) { KestrelServerOptions = this };
+            EndpointDefaults(listenOptions);
             configure(listenOptions);
             ListenOptions.Add(listenOptions);
         }
@@ -199,6 +233,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core
             }
 
             var listenOptions = new ListenOptions(handle) { KestrelServerOptions = this };
+            EndpointDefaults(listenOptions);
             configure(listenOptions);
             ListenOptions.Add(listenOptions);
         }

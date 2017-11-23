@@ -60,6 +60,17 @@ namespace SampleApp
                 .UseKestrel((context, options) =>
                 {
                     ShowConfig(context.Configuration);
+
+                    options.ConfigureEndpointDefaults(opt =>
+                    {
+                        opt.Protocols = HttpProtocols.Http1;
+                    });
+
+                    options.ConfigureEndpoint("NamedEndpoint", opt =>
+                    {
+                        opt.Protocols = HttpProtocols.Http1;
+                    });
+
                     var basePort = context.Configuration.GetValue<int?>("BASE_PORT") ?? 5000;
 
                     options.Configuration = context.Configuration.GetSection("Kestrel");

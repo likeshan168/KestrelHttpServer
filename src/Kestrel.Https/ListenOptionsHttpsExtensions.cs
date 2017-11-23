@@ -91,7 +91,7 @@ namespace Microsoft.AspNetCore.Hosting
             }
 
             var options = new HttpsConnectionAdapterOptions();
-            // TODO: Defaults
+            listenOptions.KestrelServerOptions.GetHttpsDefaults()(options);
             configureHttps(options);
             return listenOptions.UseHttps(options);
         }

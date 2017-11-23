@@ -175,8 +175,10 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal
             {
                 context.Logger.LogDebug(CoreStrings.BindingToDefaultAddress, Constants.DefaultServerAddress);
 
-                await ParseAddress(Constants.DefaultServerAddress, out var https)
-                    .BindAsync(context).ConfigureAwait(false);
+                var options = ParseAddress(Constants.DefaultServerAddress, out var https);
+                options.KestrelServerOptions = context.ServerOptions;
+                context.ServerOptions.EndpointDefaults(options);
+                await options.BindAsync(context).ConfigureAwait(false);
             }
         }
 
@@ -244,9 +246,15 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal
                 foreach (var endpoint in context.ConfigReader.Endpoints)
                 {
                     var options = ParseAddress(endpoint.Url, out var https);
+                    options.KestrelServerOptions = context.ServerOptions;
+                    context.ServerOptions.EndpointDefaults(options);
+                    if (context.ServerOptions.EndpointConfigurations.TryGetValue(endpoint.Name, out var configureEndpoint))
+                    {
+                        configureEndpoint(options);
+                    }
+                    // TODO: What if configureEndpoint added Https? Should we no-op here?
                     if (https)
                     {
-                        options.KestrelServerOptions = context.ServerOptions;
                         context.HttpsProvider.ConfigureHttps(options, endpoint.CertConfig);
                     }
                     await options.BindAsync(context).ConfigureAwait(false);
@@ -268,10 +276,11 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal
                 foreach (var address in _addresses)
                 {
                     var options = ParseAddress(address, out var https);
+                    options.KestrelServerOptions = context.ServerOptions;
+                    context.ServerOptions.EndpointDefaults(options);
 
                     if (https)
                     {
-                        options.KestrelServerOptions = context.ServerOptions;
                         context.HttpsProvider.ConfigureHttps(options, null);
                     }
 

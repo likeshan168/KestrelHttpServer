@@ -30,6 +30,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal
             if (certInfo.Exists)
             {
                 // TODO: Other patterns like cert store
+                // TODO: Default Https options per endpoint. We don't know what the name of this endpoint is, only the given name of the cert. Have it passed in?
                 listenOptions.UseHttps(certInfo.Path, certInfo.Password);
             }
             else
